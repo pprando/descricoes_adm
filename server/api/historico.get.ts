@@ -3,6 +3,18 @@ interface Feedback {
   created_at: string
 }
 
+// Validação de tipo simples (sem dependência extra)
+const validateFeedback = (obj: unknown): obj is Feedback => {
+  if (typeof obj !== 'object' || obj === null) return false
+  const feedback = obj as Record<string, unknown>
+  return (
+    typeof feedback.descricao === 'string' &&
+    feedback.descricao.length > 0 &&
+    typeof feedback.created_at === 'string' &&
+    !isNaN(Date.parse(feedback.created_at))
+  )
+}
+
 export default defineEventHandler(async (event): Promise<Feedback[]> => {
   try {
     // Acessa o binding do D1 a partir do contexto do Cloudflare
@@ -12,20 +24,37 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
     const db = event.context.cloudflare?.env?.DB
 
     if (!db) {
-      throw new Error('Database binding not found. Ensure D1 is configured in wrangler.toml')
+      console.error('D1 binding not configured')
+      throw createError({
+        statusCode: 503,
+        statusMessage: 'Service Unavailable',
+        message: 'Database configuration error'
+      })
     }
 
-    // Executa a query preparada para buscar histórico de feedbacks
+    // Executa a query preparada com LIMIT para evitar sobrecarga
+    // Máximo 1000 registros por requisição
     const statement = db.prepare(
-      'SELECT descricao, created_at FROM feedbacks ORDER BY created_at DESC'
+      'SELECT descricao, created_at FROM feedbacks ORDER BY created_at DESC LIMIT 1000'
     )
 
     const result = await statement.all()
 
-    // Retorna o array de resultados
-    return result.results as Feedback[]
+    // Valida e sanitiza resultados
+    if (!Array.isArray(result.results)) {
+      console.error('Invalid database response format')
+      return []
+    }
+
+    const validFeedbacks = result.results.filter(validateFeedback)
+
+    // Set cache headers (30 segundos para dados não-críticos)
+    setResponseHeader(event, 'Cache-Control', 'public, max-age=30, stale-while-revalidate=300')
+    setResponseHeader(event, 'Content-Type', 'application/json')
+
+    return validFeedbacks
   } catch (error) {
-    console.error('Erro ao buscar histórico de feedbacks:', error)
+    console.error('Erro ao buscar histórico de feedbacks:', error instanceof Error ? error.message : 'Unknown error')
 
     // Retorna erro genérico sem expor detalhes internos
     throw createError({

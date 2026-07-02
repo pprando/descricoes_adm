@@ -3,6 +3,15 @@
     v-slot="{ open }"
     :modal="false"
     :items="[{
+      label: 'Home',
+      to: '/'
+    }, {
+      label: 'Histórico de Feedbacks',
+      to: '/historico',
+      icon: 'i-lucide-history'
+    }, {
+      label: '-'
+    }, {
       label: 'Starter',
       to: 'https://starter-template.nuxt.dev/',
       color: 'primary',
