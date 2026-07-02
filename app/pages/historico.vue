@@ -277,9 +277,9 @@ const getTimeAgo = (dateString: string): string => {
           tag="div"
         >
           <UCard
-            v-for="(feedback, index) in filteredFeedbacks"
-            :key="`feedback-${index}`"
-            class="group cursor-pointer transition-all duration-200 hover:shadow-md dark:hover:shadow-xl"
+            v-for="feedback in filteredFeedbacks"
+            :key="`${feedback.created_at}-${feedback.descricao.substring(0, 20)}`"
+            class="group transition-all duration-200 hover:shadow-md dark:hover:shadow-xl"
             :ui="{
               body: { padding: 'p-4 sm:p-5' },
               header: { padding: '' },
@@ -287,7 +287,7 @@ const getTimeAgo = (dateString: string): string => {
             }"
           >
             <!-- Content -->
-            <div class="space-y-3">
+            <article class="space-y-3">
               <!-- Description -->
               <p class="whitespace-pre-wrap text-base leading-relaxed text-gray-900 dark:text-gray-100">
                 {{ feedback.descricao }}
@@ -299,34 +299,35 @@ const getTimeAgo = (dateString: string): string => {
                   <UIcon
                     name="i-lucide-calendar"
                     class="h-4 w-4 text-gray-400 dark:text-gray-600"
+                    aria-hidden="true"
                   />
-                  <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <time 
+                    :datetime="feedback.created_at"
+                    class="text-sm font-medium text-gray-600 dark:text-gray-400"
+                  >
                     {{ formatDate(feedback.created_at) }}
-                  </span>
+                  </time>
                 </div>
 
                 <div class="flex items-center gap-2">
                   <UIcon
                     name="i-lucide-clock"
                     class="h-4 w-4 text-gray-400 dark:text-gray-600"
+                    aria-hidden="true"
                   />
-                  <span class="text-xs text-gray-500 dark:text-gray-500">
+                  <span 
+                    class="text-xs text-gray-500 dark:text-gray-500"
+                    :title="formatDate(feedback.created_at)"
+                  >
                     {{ getTimeAgo(feedback.created_at) }}
                   </span>
                 </div>
               </div>
-            </div>
+            </article>
           </UCard>
         </TransitionGroup>
       </div>
 
-      <!-- No Results Message -->
-      <p
-        v-if="!pending && feedbacks && feedbacks.length > 0 && filteredFeedbacks.length === 0 && searchQuery"
-        class="text-center text-sm text-gray-500 dark:text-gray-400"
-      >
-        Nenhum resultado para "<strong>{{ searchQuery }}</strong>"
-      </p>
     </UPageSection>
   </div>
 </template>
