@@ -1,5 +1,3 @@
-import { defineNitroConfig } from 'nitropack/config'
-
 export default defineNitroConfig({
   // Configura o Nitro para rodar no Cloudflare Pages/Workers
   runtime: {
