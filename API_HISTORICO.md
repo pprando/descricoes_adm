@@ -204,6 +204,13 @@ wrangler pages deploy dist
 # E configure as variáveis de ambiente
 ```
 
+### Cloudflare Workers Builds
+
+Se o projeto estiver configurado para publicar como Worker, use `pnpm run build`
+como comando de build e `npx wrangler deploy` como comando de deploy. O arquivo
+`wrangler.toml` não deve conter blocos `[env.production]` ou `[env.development]`:
+o build gera uma configuração redirecionada que não aceita esses ambientes.
+
 ---
 
 ## 📝 Tipo de Dados
