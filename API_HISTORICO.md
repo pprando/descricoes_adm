@@ -31,21 +31,29 @@ Isso funciona porque:
 2. **Acessa**: O binding `DB` do Cloudflare D1
 3. **Executa**: A query SQL preparada:
    ```sql
-   SELECT descricao, created_at FROM feedbacks ORDER BY created_at DESC
+   SELECT id, tipo, regiao, unidade, nota, descricao, nome, telefone
+   FROM feedbacks
+   ORDER BY id DESC
+   LIMIT 1000
    ```
-4. **Retorna**: Array JSON com os resultados:
+4. **Retorna**: Array JSON com todas as colunas da tabela:
    ```json
    [
      {
-       "descricao": "Primeiro feedback",
-       "created_at": "2026-07-02T14:35:12.000Z"
-     },
-     {
-       "descricao": "Segundo feedback",
-       "created_at": "2026-07-01T08:20:10.000Z"
+       "id": 39,
+       "tipo": "reclamacao",
+       "regiao": "SEDE",
+       "unidade": "CENTRO MUNICIPAL DE SAÚDE",
+       "nota": 1,
+       "descricao": "Meu médico estava marcado para determinado horário",
+       "nome": null,
+       "telefone": null
      }
    ]
    ```
+
+Na página `/historico`, a lista é consultada novamente automaticamente a cada 15
+segundos. A resposta da API não é armazenada em cache.
 
 ---
 
@@ -112,17 +120,22 @@ database_id = "seu-database-id-aqui"
 -- Execute no D1 dashboard ou via CLI
 CREATE TABLE IF NOT EXISTS feedbacks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo TEXT NOT NULL,
+  regiao TEXT NOT NULL,
+  unidade TEXT NOT NULL,
+  nota INTEGER NOT NULL,
   descricao TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  nome TEXT,
+  telefone TEXT
 );
 ```
 
 ### Passo 3: Inserir Dados de Teste
 
 ```sql
-INSERT INTO feedbacks (descricao, created_at) VALUES
-('Primeiro feedback', '2026-07-02T14:35:12.000Z'),
-('Segundo feedback', '2026-07-01T08:20:10.000Z');
+INSERT INTO feedbacks (tipo, regiao, unidade, nota, descricao, nome, telefone) VALUES
+('informacao', 'SEDE', 'CENTRO MUNICIPAL DE SAÚDE', 10, 'Primeiro feedback', NULL, NULL),
+('reclamacao', 'SEDE', 'CENTRO MUNICIPAL DE SAÚDE', 6, 'Segundo feedback', NULL, NULL);
 ```
 
 ---
@@ -144,12 +157,24 @@ INSERT INTO feedbacks (descricao, created_at) VALUES
 ```json
 [
   {
-    "descricao": "Primeiro feedback",
-    "created_at": "2026-07-02T14:35:12.000Z"
+    "id": 2,
+    "tipo": "reclamacao",
+    "regiao": "SEDE",
+    "unidade": "CENTRO MUNICIPAL DE SAÚDE",
+    "nota": 6,
+    "descricao": "Segundo feedback",
+    "nome": null,
+    "telefone": null
   },
   {
-    "descricao": "Segundo feedback",
-    "created_at": "2026-07-01T08:20:10.000Z"
+    "id": 1,
+    "tipo": "informacao",
+    "regiao": "SEDE",
+    "unidade": "CENTRO MUNICIPAL DE SAÚDE",
+    "nota": 10,
+    "descricao": "Primeiro feedback",
+    "nome": null,
+    "telefone": null
   }
 ]
 ```
@@ -185,8 +210,14 @@ wrangler pages deploy dist
 
 ```typescript
 interface Feedback {
-  descricao: string      // Descrição do feedback
-  created_at: string     // Data de criação (ISO 8601)
+  id: number
+  tipo: string
+  regiao: string
+  unidade: string
+  nota: number
+  descricao: string
+  nome: string | null
+  telefone: string | null
 }
 ```
 
@@ -206,5 +237,5 @@ Após verificar que a API está funcionando:
 
 1. ✅ Testar o endpoint localmente
 2. ✅ Fazer deploy no Cloudflare Pages
-3. ⏳ Criar página Vue para consumir esta API (usando `useAsyncData()`)
-4. ⏳ Adicionar busca, ordenação e paginação no frontend
+3. ✅ Página `/historico` consome a API e exibe todas as colunas
+4. ✅ A página pesquisa os valores de todas as colunas e atualiza automaticamente a cada 15 segundos

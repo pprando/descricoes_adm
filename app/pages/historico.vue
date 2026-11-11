@@ -1,8 +1,16 @@
 <script setup lang="ts">
 interface Feedback {
+  id: number
+  tipo: string
+  regiao: string
+  unidade: string
+  nota: number
   descricao: string
-  created_at: string
+  nome: string | null
+  telefone: string | null
 }
+
+const refreshInterval = 15000
 
 definePageMeta({
   layout: 'default'
@@ -19,77 +27,57 @@ useHead({
 })
 
 const searchQuery = ref('')
+const lastUpdated = ref<Date | null>(null)
 
-// Usar sem await para evitar problemas de SSR/Hidratação
 const { data: feedbacks, pending, error, refresh } = useAsyncData<Feedback[]>(
   'historico',
   () => $fetch('/api/historico'),
   {
-    transform: (data) => data || [],
-    // Watch para refetch quando search mudar
-    watch: [searchQuery] as const
+    transform: data => data || []
   }
 )
 
+const refreshFeedbacks = async () => {
+  await refresh()
+  if (!error.value) lastUpdated.value = new Date()
+}
+
 const filteredFeedbacks = computed(() => {
   if (!feedbacks.value) return []
+  const query = searchQuery.value.trim().toLocaleLowerCase('pt-BR')
+  if (!query) return feedbacks.value
 
-  if (!searchQuery.value.trim()) {
-    return feedbacks.value
-  }
-
-  const query = searchQuery.value.toLowerCase()
-  return feedbacks.value.filter((feedback) =>
-    feedback.descricao.toLowerCase().includes(query)
+  return feedbacks.value.filter(feedback =>
+    Object.values(feedback).some(value =>
+      String(value ?? '').toLocaleLowerCase('pt-BR').includes(query)
+    )
   )
 })
 
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Data inválida'
-    
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/Sao_Paulo'
-    }).format(date)
-  } catch (e) {
-    console.error('Error formatting date:', e)
-    return 'Data inválida'
-  }
+const clearSearch = () => {
+  searchQuery.value = ''
 }
 
-// Timestamp reativo para atualizar "Há Xm" a cada minuto
-const now = ref(new Date())
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 
-// Só no cliente para evitar mismatch SSR
-if (process.client) {
-  setInterval(() => {
-    now.value = new Date()
-  }, 60000) // Atualiza a cada 1 minuto
-}
+onMounted(() => {
+  lastUpdated.value = new Date()
+  refreshTimer = setInterval(() => {
+    if (!pending.value) void refreshFeedbacks()
+  }, refreshInterval)
+})
 
-const getTimeAgo = (dateString: string): string => {
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Data inválida'
-    
-    const diffInSeconds = Math.floor((now.value.getTime() - date.getTime()) / 1000)
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 
-    if (diffInSeconds < 60) return 'Agora mesmo'
-    if (diffInSeconds < 3600) return `Há ${Math.floor(diffInSeconds / 60)}m`
-    if (diffInSeconds < 86400) return `Há ${Math.floor(diffInSeconds / 3600)}h`
-    if (diffInSeconds < 604800) return `Há ${Math.floor(diffInSeconds / 86400)}d`
-    return 'Há vários dias'
-  } catch (e) {
-    console.error('Error calculating time ago:', e)
-    return 'Data inválida'
-  }
-}
+const formatUpdatedAt = (date: Date): string =>
+  new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Sao_Paulo'
+  }).format(date)
 </script>
 
 <template>
@@ -99,7 +87,7 @@ const getTimeAgo = (dateString: string): string => {
       title="Histórico de Feedbacks"
       description="Acompanhe e analise todos os feedbacks registrados no sistema em uma interface intuitiva e responsiva."
       :ui="{
-        base: 'relative overflow-hidden',
+        root: 'relative overflow-hidden',
         container: 'flex items-center justify-between gap-6'
       }"
     />
@@ -107,7 +95,7 @@ const getTimeAgo = (dateString: string): string => {
     <!-- Main Content -->
     <UPageSection
       class="space-y-8"
-      :ui="{ container: 'max-w-4xl' }"
+      :ui="{ container: 'max-w-full' }"
     >
       <!-- Search and Stats Bar -->
       <div class="space-y-4">
@@ -117,10 +105,10 @@ const getTimeAgo = (dateString: string): string => {
             <UInput
               v-model="searchQuery"
               type="search"
-              placeholder="Pesquisar por descrição..."
+              placeholder="Pesquisar em todas as colunas..."
               icon="i-lucide-search"
               size="lg"
-              :ui="{ rounded: 'rounded-xl' }"
+              :ui="{ root: 'rounded-xl' }"
             />
           </div>
 
@@ -128,18 +116,26 @@ const getTimeAgo = (dateString: string): string => {
           <UButton
             icon="i-lucide-refresh-cw"
             :loading="pending"
-            @click="refresh"
             variant="soft"
-            color="gray"
+            color="neutral"
             aria-label="Atualizar lista de feedbacks"
+            @click="refreshFeedbacks"
           >
             Atualizar
           </UButton>
         </div>
 
+        <p
+          class="text-xs text-gray-500 dark:text-gray-400"
+          role="status"
+        >
+          Atualização automática a cada 15 segundos
+          <span v-if="lastUpdated"> · Última atualização: {{ formatUpdatedAt(lastUpdated) }}</span>
+        </p>
+
         <!-- Stats -->
         <div
-          v-if="!pending && feedbacks && feedbacks.length > 0"
+          v-if="feedbacks && feedbacks.length > 0"
           class="flex items-center gap-4 rounded-lg border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
           role="status"
           aria-label="Contador de feedbacks"
@@ -153,7 +149,7 @@ const getTimeAgo = (dateString: string): string => {
             <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
               {{ filteredFeedbacks.length }} de {{ feedbacks.length }}
               <span class="text-gray-500 dark:text-gray-500">
-                {{ feedbacks.length === 1 ? 'feedback' : 'feedbacks' }}
+                {{ feedbacks.length === 1 ? 'registro' : 'registros' }}
               </span>
             </span>
           </div>
@@ -165,10 +161,10 @@ const getTimeAgo = (dateString: string): string => {
             <UButton
               icon="i-lucide-x"
               size="xs"
-              color="gray"
+              color="neutral"
               variant="ghost"
-              @click="searchQuery = ''"
               aria-label="Limpar filtro de pesquisa"
+              @click="clearSearch"
             >
               Limpar
             </UButton>
@@ -178,7 +174,7 @@ const getTimeAgo = (dateString: string): string => {
 
       <!-- Loading State - Skeleton -->
       <div
-        v-if="pending"
+        v-if="pending && !feedbacks"
         class="space-y-4"
       >
         <div
@@ -224,10 +220,10 @@ const getTimeAgo = (dateString: string): string => {
 
         <template #footer>
           <UButton
-            icon="i-lucide-refresh-cw"
-            @click="refresh"
-            color="red"
+            color="error"
             variant="soft"
+            icon="i-lucide-refresh-cw"
+            @click="refreshFeedbacks"
           >
             Tentar novamente
           </UButton>
@@ -258,97 +254,107 @@ const getTimeAgo = (dateString: string): string => {
 
         <UButton
           v-if="searchQuery"
-          icon="i-lucide-x"
-          color="gray"
+          color="neutral"
           variant="soft"
-          @click="searchQuery = ''"
+          icon="i-lucide-x"
+          @click="clearSearch"
         >
           Limpar filtro
         </UButton>
       </div>
 
-      <!-- Feedbacks List -->
+      <!-- Feedbacks Table -->
       <div
         v-else
-        class="space-y-3"
+        class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800"
       >
-        <TransitionGroup
-          name="list"
-          tag="div"
-        >
-          <UCard
-            v-for="feedback in filteredFeedbacks"
-            :key="`${feedback.created_at}-${feedback.descricao.substring(0, 20)}`"
-            class="group transition-all duration-200 hover:shadow-md dark:hover:shadow-xl"
-            :ui="{
-              body: { padding: 'p-4 sm:p-5' },
-              header: { padding: '' },
-              footer: { padding: '' }
-            }"
-          >
-            <!-- Content -->
-            <article class="space-y-3">
-              <!-- Description -->
-              <p class="whitespace-pre-wrap text-base leading-relaxed text-gray-900 dark:text-gray-100">
+        <table class="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+          <thead class="bg-gray-50 dark:bg-gray-900">
+            <tr>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                ID
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Tipo
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Região
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Unidade
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Nota
+              </th>
+              <th
+                scope="col"
+                class="min-w-72 px-4 py-3 font-semibold"
+              >
+                Descrição
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Nome
+              </th>
+              <th
+                scope="col"
+                class="whitespace-nowrap px-4 py-3 font-semibold"
+              >
+                Telefone
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tr
+              v-for="feedback in filteredFeedbacks"
+              :key="feedback.id"
+              class="align-top hover:bg-gray-50 dark:hover:bg-gray-900/50"
+            >
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.id }}
+              </td>
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.tipo }}
+              </td>
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.regiao }}
+              </td>
+              <td class="min-w-64 px-4 py-3">
+                {{ feedback.unidade }}
+              </td>
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.nota }}
+              </td>
+              <td class="min-w-72 whitespace-pre-wrap px-4 py-3">
                 {{ feedback.descricao }}
-              </p>
-
-              <!-- Date Info -->
-              <div class="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-calendar"
-                    class="h-4 w-4 text-gray-400 dark:text-gray-600"
-                    aria-hidden="true"
-                  />
-                  <time 
-                    :datetime="feedback.created_at"
-                    class="text-sm font-medium text-gray-600 dark:text-gray-400"
-                  >
-                    {{ formatDate(feedback.created_at) }}
-                  </time>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-clock"
-                    class="h-4 w-4 text-gray-400 dark:text-gray-600"
-                    aria-hidden="true"
-                  />
-                  <span 
-                    class="text-xs text-gray-500 dark:text-gray-500"
-                    :title="formatDate(feedback.created_at)"
-                  >
-                    {{ getTimeAgo(feedback.created_at) }}
-                  </span>
-                </div>
-              </div>
-            </article>
-          </UCard>
-        </TransitionGroup>
+              </td>
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.nome ?? '—' }}
+              </td>
+              <td class="whitespace-nowrap px-4 py-3">
+                {{ feedback.telefone ?? '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-
     </UPageSection>
   </div>
 </template>
-
-<style scoped>
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.list-move {
-  transition: transform 0.3s ease;
-}
-</style>
