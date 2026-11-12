@@ -1,13 +1,13 @@
 export default defineNitroConfig({
-  // Configura o Nitro para rodar no Cloudflare Pages/Workers
+  // Configura o binding D1 do Cloudflare
   runtime: {
     cloudflare: {
       binding: 'DB'
     }
   },
 
-  // Preset para Cloudflare Pages
-  preset: 'cloudflare-pages',
+  // Preset para publicar como Cloudflare Worker
+  preset: 'cloudflare_module',
 
   // Headers CORS restritos por origem
   // Em produção, configure com domínios específicos via variáveis de ambiente
