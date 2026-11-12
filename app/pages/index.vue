@@ -1,68 +1,73 @@
+<script setup lang="ts">
+useSeoMeta({
+  title: 'Início',
+  description: 'Acesse o histórico e consulte as descrições registradas no sistema.'
+})
+</script>
+
 <template>
-  <div>
-    <UPageHero
-      title="Nuxt Starter Template"
-      description="A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours."
-      :links="[{
-        label: 'Get started',
-        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-        target: '_blank',
-        trailingIcon: 'i-lucide-arrow-right',
-        size: 'xl'
-      }, {
-        label: 'Use this template',
-        to: 'https://github.com/nuxt-ui-templates/starter',
-        target: '_blank',
-        icon: 'i-simple-icons-github',
-        size: 'xl',
-        color: 'neutral',
-        variant: 'subtle'
-      }]"
-    />
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
+    <section class="grid items-center gap-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:gap-16 dark:border-gray-800 dark:bg-gray-900">
+      <div>
+        <p class="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+          <UIcon
+            name="i-lucide-folder-clock"
+            class="size-4"
+            aria-hidden="true"
+          />
+          Acompanhamento administrativo
+        </p>
+        <h1 class="max-w-2xl text-3xl font-semibold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl dark:text-white">
+          Encontre as descrições que você precisa.
+        </h1>
+        <p class="mt-4 max-w-xl text-base leading-7 text-gray-600 sm:text-lg dark:text-gray-300">
+          Consulte os registros em um só lugar. Acesse o histórico para pesquisar descrições e acompanhar as informações cadastradas.
+        </p>
+        <UButton
+          to="/historico"
+          icon="i-lucide-history"
+          trailing-icon="i-lucide-arrow-right"
+          size="lg"
+          class="mt-8"
+        >
+          Acessar histórico
+        </UButton>
+      </div>
 
-    <UPageSection
-      id="features"
-      title="Everything you need to build modern Nuxt apps"
-      description="Start with a solid foundation. This template includes all the essentials for building production-ready applications with Nuxt UI's powerful component system."
-      :features="[{
-        icon: 'i-lucide-rocket',
-        title: 'Production-ready from day one',
-        description: 'Pre-configured with TypeScript, ESLint, Tailwind CSS, and all the best practices. Focus on building features, not setting up tooling.'
-      }, {
-        icon: 'i-lucide-palette',
-        title: 'Beautiful by default',
-        description: 'Leveraging Nuxt UI\'s design system with automatic dark mode, consistent spacing, and polished components that look great out of the box.'
-      }, {
-        icon: 'i-lucide-zap',
-        title: 'Lightning fast',
-        description: 'Optimized for performance with SSR/SSG support, automatic code splitting, and edge-ready deployment. Your users will love the speed.'
-      }, {
-        icon: 'i-lucide-blocks',
-        title: '100+ components included',
-        description: 'Access Nuxt UI\'s comprehensive component library. From forms to navigation, everything is accessible, responsive, and customizable.'
-      }, {
-        icon: 'i-lucide-code-2',
-        title: 'Developer experience first',
-        description: 'Auto-imports, hot module replacement, and TypeScript support. Write less boilerplate and ship more features.'
-      }, {
-        icon: 'i-lucide-shield-check',
-        title: 'Built for scale',
-        description: 'Enterprise-ready architecture with proper error handling, SEO optimization, and security best practices built-in.'
-      }]"
-    />
-
-    <UPageSection>
-      <UPageCTA
-        title="Visualize o Histórico de Feedbacks"
-        description="Acesse uma interface moderna e responsiva para acompanhar todos os feedbacks registrados no sistema."
-        variant="subtle"
-        :links="[{
-          label: 'Ir para Histórico',
-          to: '/historico',
-          trailingIcon: 'i-lucide-arrow-right',
-          size: 'lg'
-        }]"
-      />
-    </UPageSection>
+      <NuxtLink
+        to="/historico"
+        class="group rounded-2xl border border-gray-200 bg-gray-50 p-5 transition hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:p-6 dark:border-gray-700 dark:bg-gray-800/60 dark:hover:bg-primary/10"
+        aria-label="Abrir histórico de descrições"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm dark:bg-gray-900">
+            <UIcon
+              name="i-lucide-file-search"
+              class="size-6"
+              aria-hidden="true"
+            />
+          </span>
+          <UIcon
+            name="i-lucide-arrow-up-right"
+            class="size-5 text-gray-400 transition group-hover:text-primary"
+            aria-hidden="true"
+          />
+        </div>
+        <h2 class="mt-6 text-lg font-semibold text-gray-900 dark:text-white">
+          Histórico de descrições
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Pesquise os registros e visualize detalhes como região, unidade e descrição.
+        </p>
+        <span class="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary">
+          Ir para o histórico
+          <UIcon
+            name="i-lucide-arrow-right"
+            class="size-4 transition group-hover:translate-x-1"
+            aria-hidden="true"
+          />
+        </span>
+      </NuxtLink>
+    </section>
   </div>
 </template>
