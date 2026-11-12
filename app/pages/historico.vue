@@ -26,7 +26,8 @@ const typeLabels: Record<string, string> = {
 }
 
 definePageMeta({
-  layout: 'default'
+  layout: 'default',
+  middleware: 'manager-auth'
 })
 
 useHead({
@@ -41,10 +42,11 @@ useHead({
 
 const searchQuery = ref('')
 const lastUpdated = ref<Date | null>(null)
+const requestFetch = useRequestFetch()
 
 const { data: feedbacks, pending, error, refresh } = useAsyncData<Feedback[]>(
   'historico',
-  () => $fetch('/api/historico'),
+  () => requestFetch('/api/historico'),
   {
     transform: data => data || []
   }

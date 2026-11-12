@@ -1,3 +1,5 @@
+import { getAuthConfiguration, isManagerAuthenticated } from '../utils/manager-auth'
+
 interface Feedback {
   id: number
   tipo: string
@@ -25,6 +27,24 @@ const validateFeedback = (obj: unknown): obj is Feedback => {
 }
 
 export default defineEventHandler(async (event): Promise<Feedback[]> => {
+  const configuration = getAuthConfiguration(event)
+
+  if (!configuration) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'Authentication is not configured',
+      message: 'A autenticação ainda não está configurada no servidor.'
+    })
+  }
+
+  if (!await isManagerAuthenticated(event, configuration.sessionSecret)) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: 'É necessário entrar para consultar o histórico.'
+    })
+  }
+
   try {
     const db = event.context.cloudflare?.env?.DB
 
