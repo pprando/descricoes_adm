@@ -1,2 +1,0 @@
-MANAGER_PASSWORD="defina-uma-senha-forte-com-pelo-menos-12-caracteres"
-MANAGER_SESSION_SECRET="substitua-por-um-segredo-aleatorio-com-pelo-menos-32-caracteres"
