@@ -6,8 +6,7 @@ interface Feedback {
   unidade: string
   nota: number
   descricao: string
-  nome: string | null
-  telefone: string | null
+  created_at: string | null
 }
 
 interface UnitSummary {
@@ -17,7 +16,10 @@ interface UnitSummary {
   media: number
 }
 
+type ReadFilter = 'unread' | 'all' | 'read'
+
 const refreshInterval = 15000
+const readFeedbackStorageKey = 'historico-feedbacks-lidos'
 const typeLabels: Record<string, string> = {
   informacao: 'Informação',
   elogio: 'Elogio',
@@ -41,6 +43,8 @@ useHead({
 })
 
 const searchQuery = ref('')
+const readFilter = ref<ReadFilter>('unread')
+const readFeedbackIds = ref<number[]>([])
 const lastUpdated = ref<Date | null>(null)
 const requestFetch = useRequestFetch()
 
@@ -60,14 +64,68 @@ const refreshFeedbacks = async () => {
 const filteredFeedbacks = computed(() => {
   if (!feedbacks.value) return []
   const query = searchQuery.value.trim().toLocaleLowerCase('pt-BR')
-  if (!query) return feedbacks.value
 
-  return feedbacks.value.filter(feedback =>
-    Object.values(feedback).some(value =>
-      String(value ?? '').toLocaleLowerCase('pt-BR').includes(query)
-    )
-  )
+  return feedbacks.value.filter((feedback) => {
+    const isRead = readFeedbackIds.value.includes(feedback.id)
+    const matchesReadFilter = readFilter.value === 'all'
+      || (readFilter.value === 'read' ? isRead : !isRead)
+    const matchesSearch = !query
+      || Object.values(feedback).some(value =>
+        String(value ?? '').toLocaleLowerCase('pt-BR').includes(query)
+      )
+
+    return matchesReadFilter && matchesSearch
+  })
 })
+
+const unreadFeedbackCount = computed(() =>
+  (feedbacks.value ?? []).filter(feedback => !readFeedbackIds.value.includes(feedback.id)).length
+)
+
+const isFeedbackRead = (id: number): boolean => readFeedbackIds.value.includes(id)
+
+const toggleFeedbackRead = (id: number) => {
+  readFeedbackIds.value = isFeedbackRead(id)
+    ? readFeedbackIds.value.filter(readId => readId !== id)
+    : [...readFeedbackIds.value, id]
+
+  try {
+    localStorage.setItem(readFeedbackStorageKey, JSON.stringify(readFeedbackIds.value))
+  } catch (storageError) {
+    console.error('Não foi possível salvar o controle de leitura dos feedbacks:', storageError)
+  }
+}
+
+const loadReadFeedbacks = () => {
+  try {
+    const storedFeedbackIds: unknown = JSON.parse(localStorage.getItem(readFeedbackStorageKey) ?? '[]')
+    if (!Array.isArray(storedFeedbackIds) || !storedFeedbackIds.every(id => Number.isInteger(id))) {
+      throw new Error('Formato inválido no controle de leitura dos feedbacks')
+    }
+
+    readFeedbackIds.value = storedFeedbackIds
+  } catch (storageError) {
+    console.error('Não foi possível carregar o controle de leitura dos feedbacks:', storageError)
+  }
+}
+
+const readFilterOptions: { label: string, value: ReadFilter }[] = [
+  { label: 'Não lidos', value: 'unread' },
+  { label: 'Todos', value: 'all' },
+  { label: 'Lidos', value: 'read' }
+]
+
+const formatFeedbackDate = (date: string | null): string => {
+  if (!date) return 'Data indisponível'
+  const parsedDate = new Date(date)
+  if (Number.isNaN(parsedDate.getTime())) return 'Data indisponível'
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'America/Sao_Paulo'
+  }).format(parsedDate)
+}
 
 const feedbacksByType = computed(() => {
   const counts = new Map<string, number>()
@@ -140,6 +198,7 @@ const clearSearch = () => {
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 onMounted(() => {
+  loadReadFeedbacks()
   lastUpdated.value = new Date()
   refreshTimer = setInterval(() => {
     if (!pending.value) void refreshFeedbacks()
@@ -184,7 +243,7 @@ const formatUpdatedAt = (date: Date): string =>
             <UInput
               v-model="searchQuery"
               type="search"
-              placeholder="Pesquisar em todas as colunas..."
+              placeholder="Pesquisar nos feedbacks..."
               icon="i-lucide-search"
               size="lg"
               :ui="{ root: 'rounded-xl' }"
@@ -211,6 +270,27 @@ const formatUpdatedAt = (date: Date): string =>
           Atualização automática a cada 15 segundos
           <span v-if="lastUpdated"> · Última atualização: {{ formatUpdatedAt(lastUpdated) }}</span>
         </p>
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            {{ unreadFeedbackCount }} {{ unreadFeedbackCount === 1 ? 'feedback não lido' : 'feedbacks não lidos' }}
+          </p>
+          <div
+            class="flex flex-wrap gap-2"
+            aria-label="Filtrar feedbacks por status de leitura"
+          >
+            <UButton
+              v-for="option in readFilterOptions"
+              :key="option.value"
+              size="sm"
+              :variant="readFilter === option.value ? 'solid' : 'soft'"
+              :color="readFilter === option.value ? 'primary' : 'neutral'"
+              @click="readFilter = option.value"
+            >
+              {{ option.label }}
+            </UButton>
+          </div>
+        </div>
 
         <!-- Stats -->
         <div
@@ -472,12 +552,22 @@ const formatUpdatedAt = (date: Date): string =>
         />
         <div class="text-center">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-            {{ searchQuery ? 'Nenhum feedback encontrado' : 'Nenhum feedback registrado' }}
+            {{
+              searchQuery
+                ? 'Nenhum feedback encontrado'
+                : readFilter === 'unread' && feedbacks?.length
+                  ? 'Nenhum feedback não lido'
+                  : readFilter === 'read' && feedbacks?.length
+                    ? 'Nenhum feedback marcado como lido'
+                    : 'Nenhum feedback registrado'
+            }}
           </h3>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {{
               searchQuery
                 ? 'Tente ajustar sua busca'
+                : readFilter !== 'all' && feedbacks?.length
+                  ? 'Altere o filtro de leitura para ver outros feedbacks'
                 : 'Os feedbacks registrados aparecerão aqui'
             }}
           </p>
@@ -542,13 +632,13 @@ const formatUpdatedAt = (date: Date): string =>
                 scope="col"
                 class="whitespace-nowrap px-4 py-3 font-semibold"
               >
-                Nome
+                Data e hora
               </th>
               <th
                 scope="col"
                 class="whitespace-nowrap px-4 py-3 font-semibold"
               >
-                Telefone
+                Leitura
               </th>
             </tr>
           </thead>
@@ -557,6 +647,7 @@ const formatUpdatedAt = (date: Date): string =>
               v-for="feedback in filteredFeedbacks"
               :key="feedback.id"
               class="align-top hover:bg-gray-50 dark:hover:bg-gray-900/50"
+              :class="{ 'bg-gray-50/70 text-gray-500 dark:bg-gray-900/30 dark:text-gray-400': isFeedbackRead(feedback.id) }"
             >
               <td class="whitespace-nowrap px-4 py-3">
                 {{ feedback.id }}
@@ -577,10 +668,21 @@ const formatUpdatedAt = (date: Date): string =>
                 {{ feedback.descricao }}
               </td>
               <td class="whitespace-nowrap px-4 py-3">
-                {{ feedback.nome ?? '—' }}
+                <time :datetime="feedback.created_at ?? undefined">
+                  {{ formatFeedbackDate(feedback.created_at) }}
+                </time>
               </td>
               <td class="whitespace-nowrap px-4 py-3">
-                {{ feedback.telefone ?? '—' }}
+                <label class="inline-flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    class="size-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600"
+                    :checked="isFeedbackRead(feedback.id)"
+                    :aria-label="isFeedbackRead(feedback.id) ? `Marcar feedback ${feedback.id} como não lido` : `Marcar feedback ${feedback.id} como lido`"
+                    @change="toggleFeedbackRead(feedback.id)"
+                  >
+                  <span>{{ isFeedbackRead(feedback.id) ? 'Lido' : 'Novo' }}</span>
+                </label>
               </td>
             </tr>
           </tbody>

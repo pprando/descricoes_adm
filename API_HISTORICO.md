@@ -31,12 +31,12 @@ Isso funciona porque:
 2. **Acessa**: O binding `DB` do Cloudflare D1
 3. **Executa**: A query SQL preparada:
    ```sql
-   SELECT id, tipo, regiao, unidade, nota, descricao, nome, telefone
+   SELECT id, tipo, regiao, unidade, nota, descricao, created_at
    FROM feedbacks
-   ORDER BY id DESC
+   ORDER BY created_at DESC, id DESC
    LIMIT 1000
    ```
-4. **Retorna**: Array JSON com todas as colunas da tabela:
+4. **Retorna**: Array JSON com os campos usados pelo histórico:
    ```json
    [
      {
@@ -46,8 +46,7 @@ Isso funciona porque:
        "unidade": "CENTRO MUNICIPAL DE SAÚDE",
        "nota": 1,
        "descricao": "Meu médico estava marcado para determinado horário",
-       "nome": null,
-       "telefone": null
+       "created_at": "2026-07-02T14:35:12.000Z"
      }
    ]
    ```
@@ -126,9 +125,21 @@ CREATE TABLE IF NOT EXISTS feedbacks (
   nota INTEGER NOT NULL,
   descricao TEXT NOT NULL,
   nome TEXT,
-  telefone TEXT
+  telefone TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 ```
+
+Se a tabela já existir, adicione a coluna antes de publicar a atualização:
+
+```sql
+ALTER TABLE feedbacks ADD COLUMN created_at TEXT;
+```
+
+Após adicionar a coluna, atualize também o processo que grava novos feedbacks para
+preencher `created_at` com a data/hora do registro em ISO 8601. Registros antigos
+sem esse valor não têm data histórica recuperável e precisam ser preenchidos com
+uma data conhecida antes de aparecerem corretamente no histórico.
 
 ### Passo 3: Inserir Dados de Teste
 
@@ -216,8 +227,7 @@ interface Feedback {
   unidade: string
   nota: number
   descricao: string
-  nome: string | null
-  telefone: string | null
+  created_at: string | null
 }
 ```
 

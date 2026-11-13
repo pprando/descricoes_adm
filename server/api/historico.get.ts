@@ -7,8 +7,7 @@ interface Feedback {
   unidade: string
   nota: number
   descricao: string
-  nome: string | null
-  telefone: string | null
+  created_at: string | null
 }
 
 const validateFeedback = (obj: unknown): obj is Feedback => {
@@ -21,8 +20,8 @@ const validateFeedback = (obj: unknown): obj is Feedback => {
     && typeof feedback.unidade === 'string'
     && typeof feedback.nota === 'number'
     && typeof feedback.descricao === 'string'
-    && (typeof feedback.nome === 'string' || feedback.nome === null)
-    && (typeof feedback.telefone === 'string' || feedback.telefone === null)
+    && (feedback.created_at === null
+      || (typeof feedback.created_at === 'string' && !Number.isNaN(Date.parse(feedback.created_at))))
   )
 }
 
@@ -60,8 +59,7 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 10,
           descricao: 'Interface muito intuitiva e fácil de usar',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 5 * 60_000).toISOString()
         },
         {
           id: 5,
@@ -70,8 +68,7 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 6,
           descricao: 'Gostaria de mais opções de filtro',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 60 * 60_000).toISOString()
         },
         {
           id: 4,
@@ -80,8 +77,7 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 10,
           descricao: 'Performance excelente, carrega muito rápido',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 2 * 60 * 60_000).toISOString()
         },
         {
           id: 3,
@@ -90,8 +86,7 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 8,
           descricao: 'Alguns botões poderiam ser maiores',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 3 * 60 * 60_000).toISOString()
         },
         {
           id: 2,
@@ -100,8 +95,7 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 10,
           descricao: 'Excelente suporte técnico',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 4 * 60 * 60_000).toISOString()
         },
         {
           id: 1,
@@ -110,14 +104,13 @@ export default defineEventHandler(async (event): Promise<Feedback[]> => {
           unidade: 'CENTRO MUNICIPAL DE SAÚDE',
           nota: 9,
           descricao: 'Layout responsivo funciona bem em mobile',
-          nome: null,
-          telefone: null
+          created_at: new Date(Date.now() - 5 * 60 * 60_000).toISOString()
         }
       ]
       validFeedbacks = mockData
     } else {
       const statement = db.prepare(
-        'SELECT id, tipo, regiao, unidade, nota, descricao, nome, telefone FROM feedbacks ORDER BY id DESC LIMIT 1000'
+        'SELECT id, tipo, regiao, unidade, nota, descricao, created_at FROM feedbacks ORDER BY created_at DESC, id DESC LIMIT 1000'
       )
       const result = await statement.all()
 
